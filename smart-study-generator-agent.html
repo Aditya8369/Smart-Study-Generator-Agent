@@ -1,0 +1,3255 @@
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Study Generator Agent</title>
+  
+
+  <style>
+    /* ============================================================
+       CSS CUSTOM PROPERTIES
+    ============================================================ */
+    :root {
+      --bg-primary:    #050a18;
+      --bg-secondary:  #080f24;
+      --bg-card:       rgba(12, 22, 52, 0.7);
+      --bg-glass:      rgba(255, 255, 255, 0.04);
+
+      --accent-blue:   #3b82f6;
+      --accent-violet: #8b5cf6;
+      --accent-cyan:   #06b6d4;
+      --accent-pink:   #ec4899;
+
+      --grad-main:     linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%);
+      --grad-subtle:   linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.15) 100%);
+
+      --text-primary:  #f0f4ff;
+      --text-secondary:#94a3b8;
+      --text-muted:    #475569;
+
+      --border-glass:  rgba(255,255,255,0.08);
+      --border-accent: rgba(59,130,246,0.4);
+
+      --radius-sm:  8px;
+      --radius-md:  16px;
+      --radius-lg:  24px;
+      --radius-xl:  32px;
+
+      --space-xs:  4px;
+      --space-sm:  8px;
+      --space-md:  16px;
+      --space-lg:  32px;
+      --space-xl:  64px;
+      --space-2xl: 96px;
+
+      --font-body:    'Inter', system-ui, sans-serif;
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+
+      --shadow-glow-blue:   0 0 40px rgba(59,130,246,0.35);
+      --shadow-glow-violet: 0 0 40px rgba(139,92,246,0.35);
+      --shadow-glow-cyan:   0 0 40px rgba(6,182,212,0.35);
+
+      --transition-fast:   0.15s ease;
+      --transition-normal: 0.3s ease;
+      --transition-slow:   0.6s ease;
+    }
+
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+    ::-webkit-scrollbar-thumb {
+      background: var(--grad-main);
+      border-radius: 3px;
+    }
+
+    /* Utility */
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+    /* Fade-in animation triggered by IntersectionObserver */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ============================================================
+       BACKGROUND CANVAS (particles)
+    ============================================================ */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ============================================================
+       ANIMATED GRADIENT MESH OVERLAY
+    ============================================================ */
+    .gradient-mesh {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 20%, rgba(59,130,246,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 80% 80%, rgba(139,92,246,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(6,182,212,0.06) 0%, transparent 70%);
+      animation: meshPulse 8s ease-in-out infinite alternate;
+    }
+    @keyframes meshPulse {
+      0%   { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+
+    /* ============================================================
+       GRID LINES OVERLAY
+    ============================================================ */
+    .grid-lines {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      animation: gridFade 6s ease-in-out infinite alternate;
+    }
+    @keyframes gridFade {
+      0%   { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    /* ============================================================
+       LAYOUT WRAPPERS
+    ============================================================ */
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 var(--space-lg);
+    }
+
+    section { position: relative; z-index: 1; }
+
+    /* ============================================================
+       NAVIGATION
+    ============================================================ */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: var(--space-md) var(--space-lg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(5, 10, 24, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .nav-logo {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.2rem;
+      background: var(--grad-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: var(--space-lg);
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color var(--transition-fast);
+    }
+    .nav-links a:hover { color: var(--text-primary); }
+
+    .nav-cta {
+      background: var(--grad-main);
+      color: #fff !important;
+      padding: 8px 20px;
+      border-radius: 100px;
+      font-weight: 600 !important;
+      font-size: 0.85rem !important;
+      transition: opacity var(--transition-fast) !important;
+    }
+    .nav-cta:hover { opacity: 0.85; }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+    }
+
+    /* ============================================================
+       HERO SECTION
+    ============================================================ */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 120px 0 var(--space-xl);
+      overflow: hidden;
+    }
+
+    .hero-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-xl);
+      align-items: center;
+    }
+
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; text-align: center; }
+      .hero-graphic { display: none; }
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-accent);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      font-weight: 500;
+      margin-bottom: var(--space-md);
+      backdrop-filter: blur(10px);
+    }
+
+    .badge-dot {
+      width: 8px; height: 8px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.4rem, 5vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: var(--space-md);
+      letter-spacing: -0.02em;
+    }
+
+    /* Typewriter cursor */
+    .typewriter-cursor {
+      display: inline-block;
+      width: 3px;
+      height: 1em;
+      background: var(--accent-blue);
+      margin-left: 4px;
+      vertical-align: middle;
+      border-radius: 2px;
+      animation: cursorBlink 1s step-end infinite;
+    }
+    @keyframes cursorBlink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    .hero-title .gradient-text {
+      background: var(--grad-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-tagline {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 480px;
+      margin-bottom: var(--space-lg);
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      background: var(--grad-main);
+      color: #fff;
+      padding: 14px 28px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow-blue);
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      background: transparent;
+      color: var(--text-primary);
+      padding: 14px 28px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid var(--border-glass);
+      transition: border-color var(--transition-fast), background var(--transition-fast);
+    }
+    .btn-ghost:hover {
+      border-color: var(--accent-blue);
+      background: rgba(59,130,246,0.08);
+    }
+
+    /* ── Hero Graphic: CSS-only AI Brain Illustration ── */
+    .hero-graphic {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .brain-orb {
+      position: relative;
+      width: 380px;
+      height: 380px;
+    }
+
+    .orb-core {
+      position: absolute;
+      inset: 60px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, rgba(139,92,246,0.6), rgba(59,130,246,0.3), rgba(6,182,212,0.15));
+      box-shadow:
+        0 0 80px rgba(139,92,246,0.5),
+        0 0 160px rgba(59,130,246,0.25),
+        inset 0 0 60px rgba(255,255,255,0.05);
+      animation: orbPulse 4s ease-in-out infinite;
+    }
+    @keyframes orbPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 80px rgba(139,92,246,0.5), 0 0 160px rgba(59,130,246,0.25); }
+      50%       { transform: scale(1.04); box-shadow: 0 0 120px rgba(139,92,246,0.7), 0 0 200px rgba(59,130,246,0.4); }
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid;
+      animation: ringRotate linear infinite;
+    }
+    .orb-ring:nth-child(2) {
+      inset: 30px;
+      border-color: rgba(59,130,246,0.3);
+      animation-duration: 12s;
+    }
+    .orb-ring:nth-child(3) {
+      inset: 10px;
+      border-color: rgba(139,92,246,0.2);
+      animation-duration: 20s;
+      animation-direction: reverse;
+    }
+    .orb-ring:nth-child(4) {
+      inset: -20px;
+      border-color: rgba(6,182,212,0.15);
+      animation-duration: 30s;
+    }
+
+    /* Dot on ring */
+    .orb-ring::before {
+      content: '';
+      position: absolute;
+      top: -4px; left: 50%;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 12px var(--accent-cyan);
+      transform: translateX(-50%);
+    }
+    .orb-ring:nth-child(2)::before { background: var(--accent-blue); box-shadow: 0 0 12px var(--accent-blue); }
+    .orb-ring:nth-child(3)::before { background: var(--accent-violet); box-shadow: 0 0 12px var(--accent-violet); width: 6px; height: 6px; top: -3px; }
+
+    @keyframes ringRotate {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* Floating nodes around the orb */
+    .orb-node {
+      position: absolute;
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      animation: nodeFloat ease-in-out infinite;
+    }
+    .orb-node:nth-child(5)  { top: 20px;  left: 50px;  animation-duration: 3.2s; animation-delay: 0s; }
+    .orb-node:nth-child(6)  { top: 80px;  right: 20px; animation-duration: 4s;   animation-delay: 0.5s; }
+    .orb-node:nth-child(7)  { bottom: 60px; left: 20px; animation-duration: 3.6s; animation-delay: 1s; }
+    .orb-node:nth-child(8)  { bottom: 20px; right: 60px; animation-duration: 2.8s; animation-delay: 1.5s; }
+    @keyframes nodeFloat {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-10px); }
+    }
+
+    /* ============================================================
+       STATS BAR
+    ============================================================ */
+    #stats {
+      padding: var(--space-lg) 0;
+      border-top: 1px solid var(--border-glass);
+      border-bottom: 1px solid var(--border-glass);
+      background: rgba(8, 15, 36, 0.6);
+      backdrop-filter: blur(10px);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-lg);
+    }
+
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-number {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 700;
+      background: var(--grad-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* ============================================================
+       FEATURES SECTION
+    ============================================================ */
+    #features {
+      padding: var(--space-2xl) 0;
+    }
+
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      margin-bottom: var(--space-sm);
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: var(--space-md);
+      letter-spacing: -0.02em;
+    }
+
+    .section-desc {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      max-width: 560px;
+      line-height: 1.7;
+    }
+
+    .section-header {
+      margin-bottom: var(--space-xl);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-md);
+    }
+
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Feature card with glassmorphism + parallax tilt */
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      cursor: default;
+      transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast);
+      transform-style: preserve-3d;
+      will-change: transform;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius-lg);
+      background: var(--grad-subtle);
+      opacity: 0;
+      transition: opacity var(--transition-normal);
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-glow-blue);
+    }
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 52px; height: 52px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: var(--space-md);
+      position: relative;
+      z-index: 1;
+    }
+
+    .feature-icon.blue   { background: rgba(59,130,246,0.15);  border: 1px solid rgba(59,130,246,0.3); }
+    .feature-icon.violet { background: rgba(139,92,246,0.15);  border: 1px solid rgba(139,92,246,0.3); }
+    .feature-icon.cyan   { background: rgba(6,182,212,0.15);   border: 1px solid rgba(6,182,212,0.3); }
+    .feature-icon.pink   { background: rgba(236,72,153,0.15);  border: 1px solid rgba(236,72,153,0.3); }
+    .feature-icon.green  { background: rgba(34,197,94,0.15);   border: 1px solid rgba(34,197,94,0.3); }
+    .feature-icon.amber  { background: rgba(245,158,11,0.15);  border: 1px solid rgba(245,158,11,0.3); }
+
+    .feature-title {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: var(--space-sm);
+      position: relative; z-index: 1;
+    }
+
+    .feature-desc {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      position: relative; z-index: 1;
+    }
+
+    /* ============================================================
+       CHAT WIDGET SECTION
+    ============================================================ */
+    #chat-section {
+      padding: var(--space-2xl) 0;
+      background: linear-gradient(180deg, transparent, rgba(8,15,36,0.8), transparent);
+    }
+
+    .chat-wrapper {
+      display: grid;
+      grid-template-columns: 1fr 480px;
+      gap: var(--space-xl);
+      align-items: start;
+    }
+
+    @media (max-width: 960px) {
+      .chat-wrapper { grid-template-columns: 1fr; }
+    }
+
+    .chat-info { padding-top: var(--space-lg); }
+
+    .chat-info .section-desc { max-width: 100%; }
+
+    .chat-feature-list {
+      list-style: none;
+      margin-top: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .chat-feature-list li {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+    }
+
+    .check-icon {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(34,197,94,0.15);
+      border: 1px solid rgba(34,197,94,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem;
+      color: #22c55e;
+      flex-shrink: 0;
+    }
+
+    /* The chat container with glowing border */
+    .chat-container {
+      position: relative;
+    }
+
+    /* Animated pulsing ring */
+    .chat-pulse-ring {
+      position: absolute;
+      inset: -12px;
+      border-radius: var(--radius-xl);
+      border: 2px solid transparent;
+      background: var(--grad-main);
+      background-clip: padding-box;
+      z-index: -1;
+      animation: pulseRing 3s ease-in-out infinite;
+    }
+    @keyframes pulseRing {
+      0%, 100% { opacity: 0.5; inset: -12px; }
+      50%       { opacity: 1;   inset: -16px; }
+    }
+
+    /* Glow blur behind the widget */
+    .chat-glow {
+      position: absolute;
+      inset: -40px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(59,130,246,0.2) 0%, transparent 70%);
+      z-index: -2;
+      animation: chatGlow 4s ease-in-out infinite alternate;
+    }
+    @keyframes chatGlow {
+      0%   { opacity: 0.5; transform: scale(0.95); }
+      100% { opacity: 1;   transform: scale(1.05); }
+    }
+
+    .chat-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-bottom: none;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      padding: 12px 20px;
+      backdrop-filter: blur(16px);
+    }
+
+    .chat-status {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #22c55e;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+      animation: statusPulse 2s ease-in-out infinite;
+    }
+    @keyframes statusPulse {
+      0%, 100% { box-shadow: 0 0 8px #22c55e; }
+      50%       { box-shadow: 0 0 16px #22c55e, 0 0 32px rgba(34,197,94,0.4); }
+    }
+
+    .session-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Demo chat: shown until the Watson widget loads */
+    .demo-chat {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow: hidden;
+    }
+
+    /* Root div where Watson Orchestrate widget renders — hidden until loaded */
+    #root {
+      display: none;
+      min-height: 520px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loading-ring {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border-glass);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ============================================================
+       HOW IT WORKS SECTION
+    ============================================================ */
+    #how-it-works {
+      padding: var(--space-2xl) 0;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-md);
+      position: relative;
+    }
+
+    /* Connecting line between steps */
+    .steps-grid::before {
+      content: '';
+      position: absolute;
+      top: 36px;
+      left: 12%;
+      right: 12%;
+      height: 1px;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-violet), var(--accent-cyan));
+      opacity: 0.4;
+      z-index: 0;
+    }
+
+    @media (max-width: 768px) {
+      .steps-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .steps-grid::before { display: none; }
+    }
+    @media (max-width: 480px) {
+      .steps-grid { grid-template-columns: 1fr; }
+    }
+
+    .step-card {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: var(--space-lg) var(--space-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(16px);
+      transition: border-color var(--transition-normal), transform var(--transition-normal);
+    }
+    .step-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-6px);
+    }
+
+    .step-number {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--grad-main);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 0 auto var(--space-md);
+      box-shadow: 0 0 24px rgba(59,130,246,0.5);
+    }
+
+    .step-icon {
+      font-size: 1.8rem;
+      margin-bottom: var(--space-sm);
+      display: block;
+    }
+
+    .step-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: var(--space-sm);
+    }
+
+    .step-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Step connector arrow (visible on desktop) */
+    .step-arrow {
+      position: absolute;
+      right: -24px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.2rem;
+      color: var(--accent-blue);
+      opacity: 0.5;
+      z-index: 2;
+    }
+
+    @media (max-width: 768px) {
+      .step-arrow { display: none; }
+    }
+
+    /* ============================================================
+       TESTIMONIAL / HIGHLIGHT STRIP
+    ============================================================ */
+    #highlight {
+      padding: var(--space-xl) 0;
+    }
+
+    .highlight-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      backdrop-filter: blur(16px);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .highlight-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 200px; height: 2px;
+      background: var(--grad-main);
+    }
+
+    .highlight-quote {
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      font-family: var(--font-display);
+      font-weight: 600;
+      line-height: 1.5;
+      color: var(--text-primary);
+      max-width: 760px;
+      margin: 0 auto var(--space-md);
+    }
+
+    .highlight-quote .em {
+      background: var(--grad-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ============================================================
+       FOOTER
+    ============================================================ */
+    footer {
+      position: relative;
+      z-index: 1;
+      padding: var(--space-xl) 0 var(--space-lg);
+      border-top: 1px solid var(--border-glass);
+    }
+
+    /* Animated gradient top line */
+    .footer-line {
+      position: absolute;
+      top: -1px; left: 0; right: 0;
+      height: 2px;
+      background: var(--grad-main);
+      background-size: 200% 100%;
+      animation: lineSweep 4s linear infinite;
+    }
+    @keyframes lineSweep {
+      0%   { background-position: 0% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+    }
+
+    .footer-brand {
+      font-family: var(--font-display);
+      font-weight: 700;
+      background: var(--grad-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 1.1rem;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: var(--space-lg);
+      list-style: none;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color var(--transition-fast);
+    }
+    .footer-links a:hover { color: var(--text-secondary); }
+
+    .footer-copy {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* IBM Bob credit */
+    .made-with {
+      width: 100%;
+      text-align: center;
+      padding-top: var(--space-md);
+      margin-top: var(--space-md);
+      border-top: 1px solid var(--border-glass);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* ============================================================
+       DEMO CHAT UI (inside #root)
+    ============================================================ */
+    .demo-chat {
+      display: flex;
+      flex-direction: column;
+      height: 520px;
+      font-size: 0.88rem;
+    }
+
+    /* Message scroll area */
+    .demo-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-glass) transparent;
+    }
+    .demo-messages::-webkit-scrollbar { width: 4px; }
+    .demo-messages::-webkit-scrollbar-thumb { background: var(--border-glass); border-radius: 2px; }
+
+    /* Individual message bubbles */
+    .msg {
+      display: flex;
+      gap: 10px;
+      max-width: 88%;
+      animation: msgSlide 0.35s ease forwards;
+      opacity: 0;
+    }
+    @keyframes msgSlide {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg.agent { align-self: flex-start; }
+    .msg.user  { align-self: flex-end; flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .msg.agent .msg-avatar {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-violet));
+      box-shadow: 0 0 12px rgba(59,130,246,0.4);
+    }
+    .msg.user .msg-avatar {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--border-glass);
+    }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 14px;
+      line-height: 1.55;
+      color: var(--text-primary);
+    }
+    .msg.agent .msg-bubble {
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-top-left-radius: 4px;
+    }
+    .msg.user .msg-bubble {
+      background: rgba(139,92,246,0.15);
+      border: 1px solid rgba(139,92,246,0.3);
+      border-top-right-radius: 4px;
+    }
+
+    .msg-bubble strong { color: var(--accent-cyan); }
+    .msg-bubble ul { padding-left: 18px; margin-top: 6px; }
+    .msg-bubble li { margin-bottom: 4px; }
+    .msg-bubble .tag {
+      display: inline-block;
+      background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 100px;
+      padding: 2px 10px;
+      font-size: 0.76rem;
+      color: var(--accent-blue);
+      margin: 4px 4px 0 0;
+    }
+
+    /* Typing indicator */
+    .msg-typing .msg-bubble {
+      padding: 12px 16px;
+    }
+    .typing-dots {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .typing-dots span {
+      width: 7px; height: 7px;
+      background: var(--accent-blue);
+      border-radius: 50%;
+      animation: typingBounce 1.2s ease-in-out infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30%           { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* Input bar */
+    .demo-input-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px var(--space-md);
+      border-top: 1px solid var(--border-glass);
+      background: rgba(5,10,24,0.6);
+    }
+    .demo-input {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-glass);
+      border-radius: 100px;
+      padding: 10px 18px;
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color var(--transition-fast);
+    }
+    .demo-input::placeholder { color: var(--text-muted); }
+    .demo-input:focus { border-color: var(--accent-blue); }
+
+    .demo-send-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--grad-main);
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .demo-send-btn:hover {
+      transform: scale(1.1);
+      box-shadow: var(--shadow-glow-blue);
+    }
+
+    /* Suggested quick-reply chips */
+    .demo-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px var(--space-md) 0;
+    }
+    .demo-chip {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-glass);
+      border-radius: 100px;
+      padding: 5px 12px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+      white-space: nowrap;
+    }
+    .demo-chip:hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+      background: rgba(59,130,246,0.08);
+    }
+
+    /* ============================================================
+       STUDY PLAN PREVIEW SECTION
+    ============================================================ */
+    #study-plan {
+      padding: var(--space-2xl) 0;
+      background: linear-gradient(180deg, transparent, rgba(8,15,36,0.5), transparent);
+    }
+
+    .plan-tabs {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+
+    .plan-tab {
+      padding: 8px 20px;
+      border-radius: 100px;
+      border: 1px solid var(--border-glass);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .plan-tab.active {
+      background: var(--grad-main);
+      border-color: transparent;
+      color: #fff;
+    }
+    .plan-tab:not(.active):hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+    }
+
+    .plan-panel {
+      display: none;
+      animation: fadePanel 0.4s ease forwards;
+    }
+    .plan-panel.active { display: block; }
+    @keyframes fadePanel {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: var(--space-md);
+    }
+
+    .plan-day {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      backdrop-filter: blur(10px);
+      transition: border-color var(--transition-fast), transform var(--transition-fast);
+    }
+    .plan-day:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-3px);
+    }
+
+    .plan-day-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+    }
+
+    .plan-day-title {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .plan-task {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .plan-task-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent-violet);
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+
+    .plan-duration {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: var(--accent-blue);
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 100px;
+      padding: 2px 10px;
+    }
+
+    /* ============================================================
+       FLASHCARD SECTION
+    ============================================================ */
+    #flashcards {
+      padding: var(--space-2xl) 0;
+    }
+
+    .flashcard-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-lg);
+    }
+
+    .flashcard-wrapper {
+      width: 100%;
+      max-width: 560px;
+      height: 240px;
+      perspective: 1200px;
+      cursor: pointer;
+    }
+
+    .flashcard-inner {
+      position: relative;
+      width: 100%; height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+    .flashcard-inner.flipped { transform: rotateY(180deg); }
+
+    .flashcard-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-glass);
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-lg);
+      text-align: center;
+    }
+
+    .flashcard-face.front {
+      background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.12));
+      border-color: rgba(59,130,246,0.25);
+    }
+    .flashcard-face.back {
+      background: linear-gradient(135deg, rgba(6,182,212,0.12), rgba(34,197,94,0.1));
+      border-color: rgba(6,182,212,0.25);
+      transform: rotateY(180deg);
+    }
+
+    .card-face-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: var(--space-sm);
+    }
+    .flashcard-face.back .card-face-label { color: var(--accent-cyan); }
+
+    .card-question {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.4;
+    }
+    .card-answer {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .card-hint {
+      position: absolute;
+      bottom: 14px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    /* Flashcard controls */
+    .fc-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .fc-btn {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+    }
+    .fc-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+      background: rgba(59,130,246,0.1);
+    }
+
+    .fc-counter {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* Flashcard progress dots */
+    .fc-dots {
+      display: flex;
+      gap: 6px;
+    }
+    .fc-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border-glass);
+      border: 1px solid var(--border-glass);
+      transition: background var(--transition-fast), transform var(--transition-fast);
+    }
+    .fc-dot.active {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      transform: scale(1.3);
+    }
+    .fc-dot.seen {
+      background: rgba(59,130,246,0.35);
+      border-color: rgba(59,130,246,0.35);
+    }
+
+    /* Score buttons */
+    .fc-score-btns {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .fc-score-btn {
+      padding: 8px 18px;
+      border-radius: 100px;
+      border: 1px solid;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .fc-score-btn:hover { transform: translateY(-2px); }
+    .fc-score-btn.easy   { background: rgba(34,197,94,0.12);  border-color: rgba(34,197,94,0.4);  color: #22c55e; }
+    .fc-score-btn.medium { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.4); color: #f59e0b; }
+    .fc-score-btn.hard   { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.4);  color: #ef4444; }
+    .fc-score-btn.easy:hover   { box-shadow: 0 0 16px rgba(34,197,94,0.3); }
+    .fc-score-btn.medium:hover { box-shadow: 0 0 16px rgba(245,158,11,0.3); }
+    .fc-score-btn.hard:hover   { box-shadow: 0 0 16px rgba(239,68,68,0.3); }
+
+    /* Quiz score progress bar */
+    .fc-progress-track {
+      width: 100%;
+      max-width: 560px;
+      height: 6px;
+      background: var(--border-glass);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .fc-progress-fill {
+      height: 100%;
+      background: var(--grad-main);
+      border-radius: 3px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    /* ============================================================
+       SUBJECTS SECTION
+    ============================================================ */
+    #subjects {
+      padding: var(--space-2xl) 0;
+      background: linear-gradient(180deg, transparent, rgba(8,15,36,0.6), transparent);
+    }
+
+    .subjects-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-md);
+    }
+    @media (max-width: 900px) { .subjects-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .subjects-grid { grid-template-columns: 1fr 1fr; gap: var(--space-sm); } }
+
+    .subject-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      backdrop-filter: blur(12px);
+      text-align: center;
+      transition: border-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal);
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+    .subject-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(59,130,246,0.2);
+    }
+    .subject-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--card-accent, var(--grad-main));
+      opacity: 0;
+      transition: opacity var(--transition-normal);
+    }
+    .subject-card:hover::after { opacity: 1; }
+
+    .subject-emoji { font-size: 2rem; margin-bottom: 8px; display: block; }
+    .subject-name {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+    .subject-count {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+    .subject-bar-track {
+      width: 100%;
+      height: 4px;
+      background: var(--border-glass);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .subject-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--card-accent, var(--grad-main));
+      animation: barGrow 1.2s ease forwards;
+      transform-origin: left;
+      transform: scaleX(0);
+    }
+    @keyframes barGrow {
+      to { transform: scaleX(1); }
+    }
+
+    /* ============================================================
+       TESTIMONIALS SECTION
+    ============================================================ */
+    #testimonials {
+      padding: var(--space-2xl) 0;
+    }
+
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-md);
+    }
+    @media (max-width: 900px) { .testimonials-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .testimonials-grid { grid-template-columns: 1fr; } }
+
+    .testimonial-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      backdrop-filter: blur(16px);
+      position: relative;
+      transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+    }
+    .testimonial-card:hover {
+      border-color: var(--border-accent);
+      box-shadow: 0 8px 40px rgba(59,130,246,0.15);
+    }
+    .testimonial-card::before {
+      content: '\201C';
+      position: absolute;
+      top: 12px; left: 20px;
+      font-size: 4rem;
+      line-height: 1;
+      color: var(--accent-violet);
+      opacity: 0.3;
+      font-family: Georgia, serif;
+      pointer-events: none;
+    }
+
+    .testimonial-stars {
+      display: flex;
+      gap: 2px;
+      margin-bottom: var(--space-sm);
+    }
+    .star { color: #f59e0b; font-size: 0.9rem; }
+
+    .testimonial-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: var(--space-md);
+      font-style: italic;
+    }
+
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .author-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .author-name {
+      font-family: var(--font-display);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .author-role {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    /* ============================================================
+       LEARNING TIPS SECTION
+    ============================================================ */
+    #learning-tips {
+      padding: var(--space-2xl) 0;
+      background: linear-gradient(180deg, transparent, rgba(8,15,36,0.5), transparent);
+    }
+
+    .tips-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-xl);
+      align-items: start;
+    }
+    @media (max-width: 768px) { .tips-layout { grid-template-columns: 1fr; } }
+
+    .tips-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .tip-item {
+      display: flex;
+      gap: var(--space-md);
+      align-items: flex-start;
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      backdrop-filter: blur(10px);
+      transition: border-color var(--transition-fast), transform var(--transition-fast);
+    }
+    .tip-item:hover {
+      border-color: var(--border-accent);
+      transform: translateX(4px);
+    }
+    .tip-num {
+      min-width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--grad-main);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      box-shadow: 0 0 16px rgba(59,130,246,0.4);
+    }
+    .tip-content h4 {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .tip-content p {
+      font-size: 0.83rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .facts-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+      backdrop-filter: blur(16px);
+      position: relative;
+      overflow: hidden;
+    }
+    .facts-box::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--grad-main);
+    }
+    .facts-box-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--space-md);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .fact-row {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-glass);
+    }
+    .fact-row:last-child { border-bottom: none; }
+    .fact-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+    .fact-text {
+      font-size: 0.84rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+    .fact-text strong { color: var(--accent-cyan); font-weight: 600; }
+
+    /* ============================================================
+       ACHIEVEMENT BADGES SECTION
+    ============================================================ */
+    #achievements {
+      padding: var(--space-xl) 0;
+    }
+
+    .achievements-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: var(--space-md);
+    }
+    @media (max-width: 900px) { .achievements-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 480px) { .achievements-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .badge-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: var(--space-md) var(--space-sm);
+      text-align: center;
+      backdrop-filter: blur(10px);
+      transition: border-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal);
+      cursor: default;
+    }
+    .badge-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-6px) scale(1.04);
+      box-shadow: var(--shadow-glow-violet);
+    }
+    .badge-icon { font-size: 2.2rem; display: block; margin-bottom: 8px; }
+    .badge-name {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .badge-desc {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  
+  
+  
+  
+  <!-- Particle canvas background -->
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <div class="gradient-mesh" aria-hidden="true"></div>
+  
+  <div class="grid-lines" aria-hidden="true"></div>
+
+  
+  <nav role="navigation" aria-label="Main navigation">
+    <span class="nav-logo">★ SmartStudy AI</span>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#chat-section">Try It</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#testimonials">Stories</a></li>
+      <li><a href="#learning-tips">Study Tips</a></li>
+      <li><a href="#chat-section" class="nav-cta">Start Learning</a></li>
+    </ul>
+  </nav>
+
+  
+  <section id="hero" aria-labelledby="hero-heading">
+    <div class="container">
+      <div class="hero-inner">
+
+        
+        <div class="hero-content fade-in">
+          <div class="hero-badge">
+            <span class="badge-dot" aria-hidden="true"></span>
+            Powered by Watson Orchestrate AI
+          </div>
+
+          <h1 class="hero-title" id="hero-heading">
+            <span id="typewriter-text" class="gradient-text"></span><span class="typewriter-cursor" id="typewriter-cursor" aria-hidden="true"></span>
+          </h1>
+
+          <p class="hero-tagline">
+            Your intelligent study companion that generates personalized study plans,
+            quizzes, flashcards, and concept explanations — instantly.
+          </p>
+
+          <div class="hero-actions">
+            <a href="#chat-section" class="btn-primary">
+              ▶ Start Studying Now
+            </a>
+            <a href="#how-it-works" class="btn-ghost">
+              See How It Works
+            </a>
+          </div>
+        </div>
+
+        
+        <div class="hero-graphic fade-in" aria-hidden="true">
+          <div class="brain-orb">
+            
+            <div class="orb-ring"></div>
+            <div class="orb-ring"></div>
+            <div class="orb-ring"></div>
+            
+            <div class="orb-core"></div>
+            
+            <div class="orb-node">📚</div>
+            <div class="orb-node">✨</div>
+            <div class="orb-node">🧠</div>
+            <div class="orb-node">🎯</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  
+  <div id="stats" role="region" aria-label="Key statistics">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item fade-in">
+          <div class="stat-number" data-target="10000" data-suffix="+">0</div>
+          <div class="stat-label">Study Plans Generated</div>
+        </div>
+        <div class="stat-item fade-in">
+          <div class="stat-number" data-target="500" data-suffix="+">0</div>
+          <div class="stat-label">Topics Covered</div>
+        </div>
+        <div class="stat-item fade-in">
+          <div class="stat-number" data-target="98" data-suffix="%">0</div>
+          <div class="stat-label">Student Satisfaction</div>
+        </div>
+        <div class="stat-item fade-in">
+          <div class="stat-number" data-target="24" data-suffix="/7">0</div>
+          <div class="stat-label">AI Availability</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <section id="features" aria-labelledby="features-heading">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">Core Capabilities</div>
+        <h2 class="section-title" id="features-heading">
+          Everything You Need to Excel
+        </h2>
+        <p class="section-desc">
+          Six powerful AI tools in one intelligent agent — built to accelerate
+          your learning and deepen your understanding of any subject.
+        </p>
+      </div>
+
+      <div class="features-grid">
+
+        <div class="feature-card fade-in" data-tilt>
+          <div class="feature-icon blue">🗺</div>
+          <h3 class="feature-title">Generate Study Plans</h3>
+          <p class="feature-desc">Get a personalized, structured roadmap for any topic — broken down by week, day, or session based on your schedule.</p>
+        </div>
+
+        <div class="feature-card fade-in" data-tilt>
+          <div class="feature-icon violet">❓</div>
+          <h3 class="feature-title">Quiz Me</h3>
+          <p class="feature-desc">Instantly generate adaptive quizzes with multiple-choice, true/false, and short-answer questions tailored to your level.</p>
+        </div>
+
+        <div class="feature-card fade-in" data-tilt>
+          <div class="feature-icon cyan">📋</div>
+          <h3 class="feature-title">Summarize Notes</h3>
+          <p class="feature-desc">Paste any text, chapter, or lecture content and receive a clean, concise summary highlighting the key concepts.</p>
+        </div>
+
+        <div class="feature-card fade-in" data-tilt>
+          <div class="feature-icon pink">🎟</div>
+          <h3 class="feature-title">Flashcard Creator</h3>
+          <p class="feature-desc">Auto-generate digital flashcard decks from any topic — perfect for spaced repetition and last-minute revision.</p>
+        </div>
+
+        <div class="feature-card fade-in" data-tilt>
+          <div class="feature-icon green">💡</div>
+          <h3 class="feature-title">Concept Explainer</h3>
+          <p class="feature-desc">Ask complex questions and receive clear, layered explanations — from beginner-friendly to expert-level depth.</p>
+        </div>
+
+        <div class="feature-card fade-in" data-tilt>
+          <div class="feature-icon amber">📊</div>
+          <h3 class="feature-title">Progress Tracker</h3>
+          <p class="feature-desc">Log your sessions, track completed topics, and visualize your learning momentum over time with smart insights.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  
+  <section id="chat-section" aria-labelledby="chat-heading">
+    <div class="container">
+      <div class="chat-wrapper">
+
+        
+        <div class="chat-info fade-in">
+          <div class="section-label">AI Agent</div>
+          <h2 class="section-title" id="chat-heading">
+            Chat With Your Study Agent
+          </h2>
+          <p class="section-desc">
+            The Smart Study Generator is live and ready. Describe your topic,
+            exam, or learning goal — and watch the AI build your study
+            experience in real-time.
+          </p>
+
+          <ul class="chat-feature-list" aria-label="Agent capabilities">
+            <li><span class="check-icon" aria-hidden="true">✓</span> Responds instantly to any academic topic</li>
+            <li><span class="check-icon" aria-hidden="true">✓</span> Supports all subjects — STEM, humanities, languages</li>
+            <li><span class="check-icon" aria-hidden="true">✓</span> Context-aware multi-turn conversations</li>
+            <li><span class="check-icon" aria-hidden="true">✓</span> Formats output as plans, quizzes, or summaries</li>
+            <li><span class="check-icon" aria-hidden="true">✓</span> Available 24/7 with no wait times</li>
+          </ul>
+        </div>
+
+        
+        <div class="chat-container fade-in" role="region" aria-label="Watson Orchestrate chat widget">
+          
+          <div class="chat-glow" aria-hidden="true"></div>
+          
+          <div class="chat-pulse-ring" aria-hidden="true"></div>
+
+          
+          <div class="chat-header-bar">
+            <div class="chat-status">
+              <span class="status-dot" aria-hidden="true"></span>
+              AI Agent Active
+            </div>
+            <span class="session-label" aria-label="Session identifier">SESSION · SSG-2025</span>
+          </div>
+
+          
+          <!-- ── Demo Chat UI (shown until Watson widget loads) ── -->
+          <div class="demo-chat" id="demo-chat">
+
+            <!-- Quick-reply suggestion chips -->
+            <div class="demo-chips" id="demo-chips">
+              <button class="demo-chip" data-msg="Create a 7-day study plan for Machine Learning">&#x1F4C5; ML Study Plan</button>
+              <button class="demo-chip" data-msg="Quiz me on Newton's Laws of Motion">&#x1F9EA; Physics Quiz</button>
+              <button class="demo-chip" data-msg="Summarize the French Revolution for me">&#x1F4DC; History Summary</button>
+              <button class="demo-chip" data-msg="Make flashcards for Python data structures">&#x1F40D; Python Cards</button>
+              <button class="demo-chip" data-msg="Explain how CRISPR gene editing works">&#x1F9EC; Explain CRISPR</button>
+            </div>
+
+            <!-- Message thread -->
+            <div class="demo-messages" id="demo-messages"></div>
+
+            <!-- Input bar -->
+            <div class="demo-input-bar">
+              <input
+                type="text"
+                class="demo-input"
+                id="demo-input"
+                placeholder="Ask anything — topics, quizzes, summaries&#x2026;"
+                autocomplete="off"
+              />
+              <button class="demo-send-btn" id="demo-send" aria-label="Send message">&#x27A4;</button>
+            </div>
+
+          </div>
+          <!-- ── /Demo Chat UI ── -->
+
+          <!-- *** Watson Orchestrate root element — must be empty *** -->
+          <div id="root" role="main" aria-label="Smart Study Generator chat interface"></div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section id="how-it-works" aria-labelledby="how-heading">
+    <div class="container">
+      <div class="section-header fade-in" style="text-align:center">
+        <div class="section-label">Process</div>
+        <h2 class="section-title" id="how-heading">How It Works</h2>
+        <p class="section-desc" style="margin:0 auto">
+          Four simple steps from your learning goal to a complete, personalized
+          study experience powered by IBM Watson Orchestrate.
+        </p>
+      </div>
+
+      <div class="steps-grid">
+
+        <div class="step-card fade-in" style="position:relative">
+          <div class="step-number">1</div>
+          <span class="step-icon" aria-hidden="true">💬</span>
+          <h3 class="step-title">Input Your Topic</h3>
+          <p class="step-desc">Type your subject, exam name, or any learning goal into the chat interface above.</p>
+          <span class="step-arrow" aria-hidden="true">→</span>
+        </div>
+
+        <div class="step-card fade-in" style="position:relative">
+          <div class="step-number">2</div>
+          <span class="step-icon" aria-hidden="true">⚙</span>
+          <h3 class="step-title">AI Processes</h3>
+          <p class="step-desc">Watson Orchestrate analyzes your request, identifies learning objectives, and structures content.</p>
+          <span class="step-arrow" aria-hidden="true">→</span>
+        </div>
+
+        <div class="step-card fade-in" style="position:relative">
+          <div class="step-number">3</div>
+          <span class="step-icon" aria-hidden="true">📖</span>
+          <h3 class="step-title">Study Material Generated</h3>
+          <p class="step-desc">Receive a tailored study plan, quiz, summary, or flashcards — formatted and ready to use.</p>
+          <span class="step-arrow" aria-hidden="true">→</span>
+        </div>
+
+        <div class="step-card fade-in">
+          <div class="step-number">4</div>
+          <span class="step-icon" aria-hidden="true">🎓</span>
+          <h3 class="step-title">You Learn &amp; Grow</h3>
+          <p class="step-desc">Study smarter, retain more, and track your progress — iterate and ask follow-up questions anytime.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       STUDY PLAN PREVIEW SECTION
+  ============================================================ -->
+  <section id="study-plan" aria-labelledby="study-plan-heading">
+    <div class="container">
+      <div class="section-header fade-in" style="text-align:center;">
+        <div class="section-label">AI-Generated Output</div>
+        <h2 class="section-title" id="study-plan-heading">Sample Study Plan</h2>
+        <p class="section-desc" style="margin:0 auto;">
+          Here's what the AI agent generates when you ask for a structured study plan.
+          Switch topics to see different plans.
+        </p>
+      </div>
+
+      <!-- Topic tabs -->
+      <div class="plan-tabs fade-in" id="plan-tabs" role="tablist" aria-label="Study plan topics">
+        <button class="plan-tab active" role="tab" aria-selected="true"  data-plan="ml">&#x1F916; Machine Learning</button>
+        <button class="plan-tab"        role="tab" aria-selected="false" data-plan="history">&#x1F4DC; World History</button>
+        <button class="plan-tab"        role="tab" aria-selected="false" data-plan="biology">&#x1F9EC; Cell Biology</button>
+        <button class="plan-tab"        role="tab" aria-selected="false" data-plan="calculus">&#x222B; Calculus</button>
+      </div>
+
+      <!-- ML Plan -->
+      <div class="plan-panel active" id="plan-ml" role="tabpanel">
+        <div class="plan-grid">
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 1 &mdash; Monday</div>
+            <div class="plan-day-title">Intro to ML Concepts</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Supervised vs. Unsupervised Learning</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Key terminology: features, labels, models</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Watch 3Blue1Brown: Neural Networks ep. 1</div>
+            <span class="plan-duration">&#x23F0; 60 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 2 &mdash; Tuesday</div>
+            <div class="plan-day-title">Linear Regression</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Cost function &amp; gradient descent</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Implement from scratch in Python</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Practice: California housing dataset</div>
+            <span class="plan-duration">&#x23F0; 75 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 3 &mdash; Wednesday</div>
+            <div class="plan-day-title">Classification Algorithms</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Logistic regression theory</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Decision trees &amp; random forests</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Sklearn walkthrough</div>
+            <span class="plan-duration">&#x23F0; 90 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 4 &mdash; Thursday</div>
+            <div class="plan-day-title">Model Evaluation</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Accuracy, precision, recall, F1</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Confusion matrix deep-dive</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Cross-validation strategies</div>
+            <span class="plan-duration">&#x23F0; 60 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 5 &mdash; Friday</div>
+            <div class="plan-day-title">Neural Networks Basics</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Perceptrons &amp; activation functions</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Backpropagation intuition</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Build a simple NN with PyTorch</div>
+            <span class="plan-duration">&#x23F0; 120 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 6–7 &mdash; Weekend</div>
+            <div class="plan-day-title">Project &amp; Review</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Mini-project: image classifier</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Flashcard review of all concepts</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Take AI-generated quiz</div>
+            <span class="plan-duration">&#x23F0; 3 hrs</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Plan -->
+      <div class="plan-panel" id="plan-history" role="tabpanel">
+        <div class="plan-grid">
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 1</div>
+            <div class="plan-day-title">Ancient Civilizations</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Mesopotamia &amp; Egypt timelines</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Key rulers &amp; dynasties</div>
+            <span class="plan-duration">&#x23F0; 60 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 2</div>
+            <div class="plan-day-title">Greek &amp; Roman Empires</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Athenian democracy origins</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Rise &amp; fall of Rome</div>
+            <span class="plan-duration">&#x23F0; 75 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 3</div>
+            <div class="plan-day-title">Medieval Period</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Feudalism &amp; the Church</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>The Crusades overview</div>
+            <span class="plan-duration">&#x23F0; 60 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 4</div>
+            <div class="plan-day-title">Renaissance &amp; Reformation</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Art &amp; scientific revolution</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Martin Luther &amp; Protestantism</div>
+            <span class="plan-duration">&#x23F0; 70 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 5</div>
+            <div class="plan-day-title">Age of Revolutions</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>French &amp; American Revolutions</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Industrial Revolution impact</div>
+            <span class="plan-duration">&#x23F0; 80 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 6–7</div>
+            <div class="plan-day-title">20th Century &amp; Review</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>World Wars I &amp; II summary</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Cold War &amp; decolonization</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Full review quiz</div>
+            <span class="plan-duration">&#x23F0; 3 hrs</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Biology Plan -->
+      <div class="plan-panel" id="plan-biology" role="tabpanel">
+        <div class="plan-grid">
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 1</div>
+            <div class="plan-day-title">Cell Structure</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Prokaryotic vs eukaryotic cells</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Organelle functions</div>
+            <span class="plan-duration">&#x23F0; 60 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 2</div>
+            <div class="plan-day-title">DNA &amp; Gene Expression</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>DNA replication steps</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Transcription &amp; translation</div>
+            <span class="plan-duration">&#x23F0; 90 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 3</div>
+            <div class="plan-day-title">Cell Division</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Mitosis phases in detail</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Meiosis &amp; genetic variation</div>
+            <span class="plan-duration">&#x23F0; 75 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 4</div>
+            <div class="plan-day-title">Metabolism</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Cellular respiration (ATP synthesis)</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Photosynthesis light &amp; dark reactions</div>
+            <span class="plan-duration">&#x23F0; 80 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 5</div>
+            <div class="plan-day-title">Cell Signalling</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Receptor types &amp; pathways</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Apoptosis &amp; cancer basics</div>
+            <span class="plan-duration">&#x23F0; 70 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 6–7</div>
+            <div class="plan-day-title">Genetics &amp; Review</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Mendelian genetics &amp; Punnett squares</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>CRISPR &amp; modern techniques</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Practice exam questions</div>
+            <span class="plan-duration">&#x23F0; 3 hrs</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculus Plan -->
+      <div class="plan-panel" id="plan-calculus" role="tabpanel">
+        <div class="plan-grid">
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 1</div>
+            <div class="plan-day-title">Limits &amp; Continuity</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Definition of a limit</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>L'H&#244;pital's rule</div>
+            <span class="plan-duration">&#x23F0; 60 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 2</div>
+            <div class="plan-day-title">Derivatives</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Power, product &amp; chain rules</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Implicit differentiation</div>
+            <span class="plan-duration">&#x23F0; 75 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 3</div>
+            <div class="plan-day-title">Applications of Derivatives</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Related rates problems</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Optimization (min/max)</div>
+            <span class="plan-duration">&#x23F0; 90 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 4</div>
+            <div class="plan-day-title">Integration</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Definite &amp; indefinite integrals</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>u-substitution technique</div>
+            <span class="plan-duration">&#x23F0; 80 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 5</div>
+            <div class="plan-day-title">Integration Techniques</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Integration by parts</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Partial fractions</div>
+            <span class="plan-duration">&#x23F0; 90 min</span>
+          </div>
+          <div class="plan-day fade-in">
+            <div class="plan-day-label">Day 6–7</div>
+            <div class="plan-day-title">Series &amp; Review</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Taylor &amp; Maclaurin series</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Convergence tests</div>
+            <div class="plan-task"><span class="plan-task-dot"></span>Past paper practice</div>
+            <span class="plan-duration">&#x23F0; 3 hrs</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FLASHCARD FLIPPER SECTION
+  ============================================================ -->
+  <section id="flashcards" aria-labelledby="flashcards-heading">
+    <div class="container">
+      <div class="section-header fade-in" style="text-align:center;">
+        <div class="section-label">Interactive Demo</div>
+        <h2 class="section-title" id="flashcards-heading">AI-Generated Flashcards</h2>
+        <p class="section-desc" style="margin:0 auto;">
+          Tap any card to reveal the answer. Rate your confidence to simulate spaced repetition.
+        </p>
+      </div>
+
+      <div class="flashcard-area fade-in">
+
+        <!-- Progress bar -->
+        <div class="fc-progress-track" style="width:100%;max-width:560px;" aria-label="Flashcard progress">
+          <div class="fc-progress-fill" id="fc-progress"></div>
+        </div>
+
+        <!-- The flippable card -->
+        <div class="flashcard-wrapper" id="flashcard-wrapper" role="button" tabindex="0" aria-label="Flashcard — click to flip">
+          <div class="flashcard-inner" id="flashcard-inner">
+            <div class="flashcard-face front">
+              <div class="card-face-label">Question</div>
+              <div class="card-question" id="card-question">Loading&hellip;</div>
+              <div class="card-hint">&#x1F91A; Click to reveal answer</div>
+            </div>
+            <div class="flashcard-face back">
+              <div class="card-face-label">Answer</div>
+              <div class="card-answer" id="card-answer">Loading&hellip;</div>
+              <div class="card-hint">&#x1F9E0; How well did you know this?</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="fc-controls">
+          <button class="fc-btn" id="fc-prev" aria-label="Previous card">&#x2190;</button>
+          <span class="fc-counter" id="fc-counter">1 / 8</span>
+          <button class="fc-btn" id="fc-next" aria-label="Next card">&#x2192;</button>
+        </div>
+
+        <!-- Progress dots -->
+        <div class="fc-dots" id="fc-dots" aria-hidden="true"></div>
+
+        <!-- Self-assessment buttons (visible after flip) -->
+        <div class="fc-score-btns" id="fc-score-btns" style="opacity:0;transition:opacity 0.3s ease;">
+          <button class="fc-score-btn easy"   id="fc-easy">&#x1F7E2; Easy</button>
+          <button class="fc-score-btn medium" id="fc-medium">&#x1F7E1; Medium</button>
+          <button class="fc-score-btn hard"   id="fc-hard">&#x1F534; Hard</button>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SUBJECT COVERAGE SECTION
+  ============================================================ -->
+  <section id="subjects" aria-labelledby="subjects-heading">
+    <div class="container">
+      <div class="section-header fade-in" style="text-align:center;">
+        <div class="section-label">Coverage</div>
+        <h2 class="section-title" id="subjects-heading">500+ Subjects Covered</h2>
+        <p class="section-desc" style="margin:0 auto;">
+          From STEM to humanities — SmartStudy AI masters every discipline.
+        </p>
+      </div>
+
+      <div class="subjects-grid">
+        <div class="subject-card fade-in" style="--card-accent: linear-gradient(90deg,#3b82f6,#6366f1);">
+          <span class="subject-emoji">🔬</span>
+          <div class="subject-name">Sciences</div>
+          <div class="subject-count">Biology · Chemistry · Physics · Earth Science</div>
+          <div class="subject-bar-track"><div class="subject-bar-fill" style="width:92%;"></div></div>
+        </div>
+        <div class="subject-card fade-in" style="--card-accent: linear-gradient(90deg,#8b5cf6,#ec4899);">
+          <span class="subject-emoji">📐</span>
+          <div class="subject-name">Mathematics</div>
+          <div class="subject-count">Algebra · Calculus · Stats · Geometry</div>
+          <div class="subject-bar-track"><div class="subject-bar-fill" style="width:95%;"></div></div>
+        </div>
+        <div class="subject-card fade-in" style="--card-accent: linear-gradient(90deg,#06b6d4,#3b82f6);">
+          <span class="subject-emoji">💻</span>
+          <div class="subject-name">Computer Science</div>
+          <div class="subject-count">AI · Data Structures · Networking · OS</div>
+          <div class="subject-bar-track"><div class="subject-bar-fill" style="width:97%;"></div></div>
+        </div>
+        <div class="subject-card fade-in" style="--card-accent: linear-gradient(90deg,#f59e0b,#ef4444);">
+          <span class="subject-emoji">🌍</span>
+          <div class="subject-name">Humanities</div>
+          <div class="subject-count">History · Geography · Philosophy · Arts</div>
+          <div class="subject-bar-track"><div class="subject-bar-fill" style="width:88%;"></div></div>
+        </div>
+        <div class="subject-card fade-in" style="--card-accent: linear-gradient(90deg,#22c55e,#06b6d4);">
+          <span class="subject-emoji">🌐</span>
+          <div class="subject-name">Languages</div>
+          <div class="subject-count">English · French · Spanish · Mandarin</div>
+          <div class="subject-bar-track"><div class="subject-bar-fill" style="width:80%;"></div></div>
+        </div>
+        <div class="subject-card fade-in" style="--card-accent: linear-gradient(90deg,#ec4899,#8b5cf6);">
+          <span class="subject-emoji">⚕️</span>
+          <div class="subject-name">Medicine</div>
+          <div class="subject-count">Anatomy · Pharmacology · Pathology · Physiology</div>
+          <div class="subject-bar-track"><div class="subject-bar-fill" style="width:85%;"></div></div>
+        </div>
+        <div class="subject-card fade-in" style="--card-accent: linear-gradient(90deg,#f59e0b,#22c55e);">
+          <span class="subject-emoji">📈</span>
+          <div class="subject-name">Business</div>
+          <div class="subject-count">Economics · Finance · Marketing · Strategy</div>
+          <div class="subject-bar-track"><div class="subject-bar-fill" style="width:90%;"></div></div>
+        </div>
+        <div class="subject-card fade-in" style="--card-accent: linear-gradient(90deg,#6366f1,#06b6d4);">
+          <span class="subject-emoji">⚖️</span>
+          <div class="subject-name">Law & Social</div>
+          <div class="subject-count">Law · Sociology · Psychology · Political Science</div>
+          <div class="subject-bar-track"><div class="subject-bar-fill" style="width:78%;"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       TESTIMONIALS SECTION
+  ============================================================ -->
+  <section id="testimonials" aria-labelledby="testimonials-heading">
+    <div class="container">
+      <div class="section-header fade-in" style="text-align:center;">
+        <div class="section-label">Student Stories</div>
+        <h2 class="section-title" id="testimonials-heading">What Learners Are Saying</h2>
+        <p class="section-desc" style="margin:0 auto;">
+          Thousands of students have transformed their study habits with SmartStudy AI.
+        </p>
+      </div>
+
+      <div class="testimonials-grid">
+
+        <div class="testimonial-card fade-in">
+          <div class="testimonial-stars">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p class="testimonial-text">"I went from failing my machine learning exam to scoring 89% in just three weeks. The AI-generated study plan broke everything down perfectly — I never felt overwhelmed."</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);">👩‍💻</div>
+            <div>
+              <div class="author-name">Priya Sharma</div>
+              <div class="author-role">Computer Science, IIT Delhi</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card fade-in">
+          <div class="testimonial-stars">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p class="testimonial-text">"The flashcard creator is absolutely mind-blowing. I uploaded my biology notes and got 40 perfect flashcards in seconds. Spaced repetition scheduling is a game-changer!"</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#06b6d4,#22c55e);">🧑‍🔬</div>
+            <div>
+              <div class="author-name">Marcus Johnson</div>
+              <div class="author-role">Pre-Med, University of Toronto</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card fade-in">
+          <div class="testimonial-stars">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p class="testimonial-text">"As a working professional studying for my CFA exam, I had no time to waste. SmartStudy AI gave me a focused 30-day plan that fit around my schedule perfectly. Passed first try!"</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#f59e0b,#ec4899);">👨‍💼</div>
+            <div>
+              <div class="author-name">Chen Wei</div>
+              <div class="author-role">Finance Analyst, Singapore</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card fade-in">
+          <div class="testimonial-stars">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p class="testimonial-text">"I used to spend hours creating quizzes manually for my students. Now I generate 20 well-crafted questions in under 30 seconds. My classroom engagement has doubled!"</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#8b5cf6,#06b6d4);">👩‍🏫</div>
+            <div>
+              <div class="author-name">Dr. Aisha Okonkwo</div>
+              <div class="author-role">Educator, Lagos University</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card fade-in">
+          <div class="testimonial-stars">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p class="testimonial-text">"The concept explainer is incredible. I asked it to explain quantum entanglement at three different levels — from high school to PhD — and each was perfectly calibrated."</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#22c55e,#3b82f6);">🧑‍🎓</div>
+            <div>
+              <div class="author-name">Lena Fischer</div>
+              <div class="author-role">Physics PhD Student, TU Berlin</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card fade-in">
+          <div class="testimonial-stars">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p class="testimonial-text">"I crammed an entire semester of calculus in 5 days using the AI-generated plan. The progress tracker kept me motivated every single day. Got a B+ when I expected to fail!"</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#ec4899,#8b5cf6);">👨‍🎓</div>
+            <div>
+              <div class="author-name">Ravi Patel</div>
+              <div class="author-role">Engineering Student, Mumbai</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ACHIEVEMENT BADGES SECTION
+  ============================================================ -->
+  <section id="achievements" aria-labelledby="achievements-heading">
+    <div class="container">
+      <div class="section-header fade-in" style="text-align:center;">
+        <div class="section-label">Gamification</div>
+        <h2 class="section-title" id="achievements-heading">Earn Learning Badges</h2>
+        <p class="section-desc" style="margin:0 auto;">
+          Stay motivated by unlocking achievement badges as you hit study milestones.
+        </p>
+      </div>
+
+      <div class="achievements-grid">
+        <div class="badge-card fade-in">
+          <span class="badge-icon">🔥</span>
+          <div class="badge-name">7-Day Streak</div>
+          <div class="badge-desc">Study 7 days in a row</div>
+        </div>
+        <div class="badge-card fade-in">
+          <span class="badge-icon">🧠</span>
+          <div class="badge-name">Deep Thinker</div>
+          <div class="badge-desc">Complete 50 flashcards</div>
+        </div>
+        <div class="badge-card fade-in">
+          <span class="badge-icon">⚡</span>
+          <div class="badge-name">Speed Learner</div>
+          <div class="badge-desc">Finish a plan in under 5 days</div>
+        </div>
+        <div class="badge-card fade-in">
+          <span class="badge-icon">🏆</span>
+          <div class="badge-name">Quiz Champion</div>
+          <div class="badge-desc">Score 100% on a quiz</div>
+        </div>
+        <div class="badge-card fade-in">
+          <span class="badge-icon">📚</span>
+          <div class="badge-name">Bookworm</div>
+          <div class="badge-desc">Study 10 different subjects</div>
+        </div>
+        <div class="badge-card fade-in">
+          <span class="badge-icon">🌟</span>
+          <div class="badge-name">AI Pioneer</div>
+          <div class="badge-desc">Generate your first study plan</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       LEARNING TIPS + FUN FACTS
+  ============================================================ -->
+  <section id="learning-tips" aria-labelledby="tips-heading">
+    <div class="container">
+      <div class="section-header fade-in" style="text-align:center;">
+        <div class="section-label">Study Science</div>
+        <h2 class="section-title" id="tips-heading">Evidence-Based Study Tips</h2>
+        <p class="section-desc" style="margin:0 auto;">
+          Our AI is built on decades of cognitive science research for maximum retention.
+        </p>
+      </div>
+
+      <div class="tips-layout">
+        <div class="tips-list">
+          <div class="tip-item fade-in">
+            <div class="tip-num">1</div>
+            <div class="tip-content">
+              <h4>Spaced Repetition</h4>
+              <p>Reviewing material at increasing intervals boosts long-term retention by up to <strong>200%</strong> compared to massed practice. Our flashcard system automates this for you.</p>
+            </div>
+          </div>
+          <div class="tip-item fade-in">
+            <div class="tip-num">2</div>
+            <div class="tip-content">
+              <h4>Active Recall</h4>
+              <p>Testing yourself forces your brain to actively retrieve information — strengthening neural pathways far more effectively than re-reading notes.</p>
+            </div>
+          </div>
+          <div class="tip-item fade-in">
+            <div class="tip-num">3</div>
+            <div class="tip-content">
+              <h4>The Pomodoro Technique</h4>
+              <p>25 minutes of focused study followed by a 5-minute break dramatically reduces mental fatigue and improves overall productivity throughout a session.</p>
+            </div>
+          </div>
+          <div class="tip-item fade-in">
+            <div class="tip-num">4</div>
+            <div class="tip-content">
+              <h4>Interleaved Practice</h4>
+              <p>Mixing different topics or problem types in a single session leads to better long-term learning than practicing one type repeatedly (blocked practice).</p>
+            </div>
+          </div>
+          <div class="tip-item fade-in">
+            <div class="tip-num">5</div>
+            <div class="tip-content">
+              <h4>The Feynman Technique</h4>
+              <p>Explain a concept in simple terms as if teaching it to a child. Gaps in your explanation reveal exactly what you still need to study.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="facts-box fade-in">
+          <div class="facts-box-title">🤯 Did You Know?</div>
+          <div class="fact-row">
+            <span class="fact-icon">💡</span>
+            <div class="fact-text">The human brain can store approximately <strong>2.5 petabytes</strong> of information — equivalent to 3 million hours of TV shows.</div>
+          </div>
+          <div class="fact-row">
+            <span class="fact-icon">😴</span>
+            <div class="fact-text">Sleep is when the brain consolidates memories. Studying before bed and sleeping right after can boost retention by <strong>up to 40%</strong>.</div>
+          </div>
+          <div class="fact-row">
+            <span class="fact-icon">🎵</span>
+            <div class="fact-text">Listening to <strong>baroque music</strong> (60 BPM) while studying can improve focus and memory encoding, a phenomenon known as the "Mozart Effect".</div>
+          </div>
+          <div class="fact-row">
+            <span class="fact-icon">✏️</span>
+            <div class="fact-text">Handwriting notes (vs. typing) leads to <strong>deeper processing</strong> of information, resulting in better conceptual understanding and recall.</div>
+          </div>
+          <div class="fact-row">
+            <span class="fact-icon">🧩</span>
+            <div class="fact-text">The <strong>"Spacing Effect"</strong> was discovered by Hermann Ebbinghaus in 1885 and remains one of the most replicated findings in cognitive psychology.</div>
+          </div>
+          <div class="fact-row">
+            <span class="fact-icon">🏃</span>
+            <div class="fact-text">Just <strong>20 minutes of aerobic exercise</strong> before studying boosts BDNF (brain-derived neurotrophic factor), improving memory formation significantly.</div>
+          </div>
+          <div class="fact-row">
+            <span class="fact-icon">🎯</span>
+            <div class="fact-text">Students who set <strong>specific learning goals</strong> before a study session retain up to 30% more content than those who study without clear objectives.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       HIGHLIGHT STRIP
+  ============================================================ -->
+  <section id="highlight" aria-label="Key message">
+    <div class="container">
+      <div class="highlight-card fade-in">
+        <p class="highlight-quote">
+          "Stop studying harder &mdash; start studying
+          <span class="em">smarter</span>. Your AI study agent is
+          <span class="em">always on</span>, always ready."
+        </p>
+        <a href="#chat-section" class="btn-primary" style="display:inline-flex;">
+          &#x1F680; Launch Your Study Session
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FOOTER
+  ============================================================ -->
+  <footer role="contentinfo">
+    <div class="footer-line" aria-hidden="true"></div>
+    <div class="container">
+      <div class="footer-inner">
+        <span class="footer-brand">&#x2605; SmartStudy AI</span>
+        <ul class="footer-links" aria-label="Footer navigation">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#chat-section">Chat</a></li>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#subjects">Subjects</a></li>
+          <li><a href="#testimonials">Stories</a></li>
+          <li><a href="#learning-tips">Study Tips</a></li>
+          <li><a href="#study-plan">Study Plans</a></li>
+          <li><a href="#flashcards">Flashcards</a></li>
+        </ul>
+        <span class="footer-copy">&copy; 2025 Smart Study Generator. All rights reserved.</span>
+      </div>
+      <p class="made-with">Made with IBM Bob</p>
+    </div>
+  </footer>
+
+  <!-- ============================================================
+       WATSON ORCHESTRATE WIDGET INITIALIZATION
+       (Embedded exactly as provided — no values modified)
+  ============================================================ -->
+  <script>
+    window.wxOConfiguration = {
+      orchestrationID: "5d395288d63946548797e15c437652af_52fb804a-73ba-406d-97b7-446dde73385d",
+      hostURL: "https://au-syd.watson-orchestrate.cloud.ibm.com",
+      rootElementID: "root",
+      deploymentPlatform: "ibmcloud",
+      crn: "crn:v1:bluemix:public:watsonx-orchestrate:au-syd:a/5d395288d63946548797e15c437652af:52fb804a-73ba-406d-97b7-446dde73385d::",
+      chatOptions: {
+        agentId: "baf6f8b6-b941-4ef5-9b6c-91eeeece0a20"
+      }
+    };
+    setTimeout(function () {
+      var script = document.createElement('script');
+      script.src = window.wxOConfiguration.hostURL + '/wxochat/wxoLoader.js?embed=true';
+      script.addEventListener('load', function () {
+        /* Show the real widget container */
+        var root = document.getElementById('root');
+        if (root) root.style.display = 'block';
+        /* Hide the demo chat placeholder */
+        var demo = document.getElementById('demo-chat');
+        if (demo) demo.style.display = 'none';
+        wxoLoader.init();
+      });
+      document.head.appendChild(script);
+    }, 0);
+  </script>
+
+  <!-- ============================================================
+       VANILLA JAVASCRIPT — all page interactions
+  ============================================================ -->
+  <script>
+    'use strict';
+
+    /* ----------------------------------------------------------
+       1. PARTICLE CANVAS BACKGROUND
+    ---------------------------------------------------------- */
+    (function initParticles() {
+      const canvas = document.getElementById('bg-canvas');
+      const ctx    = canvas.getContext('2d');
+      let W, H, particles = [];
+
+      const COLORS   = ['rgba(59,130,246,', 'rgba(139,92,246,', 'rgba(6,182,212,'];
+      const COUNT    = 80;
+      const MAX_DIST = 120;
+
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+
+      function createParticle() {
+        return {
+          x:  Math.random() * W,
+          y:  Math.random() * H,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          r:  Math.random() * 2 + 0.5,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)]
+        };
+      }
+
+      function init() {
+        resize();
+        particles = [];
+        for (let i = 0; i < COUNT; i++) particles.push(createParticle());
+      }
+
+      function drawParticle(p) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color + '0.7)';
+        ctx.fill();
+      }
+
+      function drawConnections() {
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx   = particles[i].x - particles[j].x;
+            const dy   = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < MAX_DIST) {
+              const alpha = 1 - dist / MAX_DIST;
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = 'rgba(59,130,246,' + (alpha * 0.15) + ')';
+              ctx.lineWidth   = 0.5;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, W, H);
+        particles.forEach(function(p) {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = W;
+          if (p.x > W) p.x = 0;
+          if (p.y < 0) p.y = H;
+          if (p.y > H) p.y = 0;
+          drawParticle(p);
+        });
+        drawConnections();
+        requestAnimationFrame(animate);
+      }
+
+      init();
+      animate();
+      window.addEventListener('resize', init);
+    })();
+
+
+    /* ----------------------------------------------------------
+       2. TYPEWRITER HERO ANIMATION
+    ---------------------------------------------------------- */
+    (function initTypewriter() {
+      const el      = document.getElementById('typewriter-text');
+      const phrases = [
+        'Smart Study Generator',
+        'Your AI Study Partner',
+        'Learn Anything, Faster'
+      ];
+      let phraseIdx = 0;
+      let charIdx   = 0;
+      let deleting  = false;
+      let pauseTime = 0;
+
+      function tick() {
+        const phrase = phrases[phraseIdx];
+        if (!deleting && charIdx <= phrase.length) {
+          el.textContent = phrase.substring(0, charIdx);
+          charIdx++;
+          if (charIdx > phrase.length) { pauseTime = 2200; deleting = true; }
+        } else if (deleting && charIdx >= 0) {
+          el.textContent = phrase.substring(0, charIdx);
+          charIdx--;
+          if (charIdx < 0) {
+            deleting  = false;
+            phraseIdx = (phraseIdx + 1) % phrases.length;
+            charIdx   = 0;
+            pauseTime = 400;
+          }
+        }
+        const speed = deleting ? 40 : 80;
+        setTimeout(tick, pauseTime > 0 ? (function() { const t = pauseTime; pauseTime = 0; return t; })() : speed);
+      }
+      tick();
+    })();
+
+
+    /* ----------------------------------------------------------
+       3. INTERSECTION OBSERVER — FADE-IN ON SCROLL
+    ---------------------------------------------------------- */
+    (function initFadeIn() {
+      const els = document.querySelectorAll('.fade-in');
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      els.forEach(function(el) { observer.observe(el); });
+    })();
+
+
+    /* ----------------------------------------------------------
+       4. ANIMATED STAT COUNTERS
+    ---------------------------------------------------------- */
+    (function initCounters() {
+      const counters = document.querySelectorAll('.stat-number[data-target]');
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (!entry.isIntersecting) return;
+          const el     = entry.target;
+          const target = parseInt(el.getAttribute('data-target'), 10);
+          const suffix = el.getAttribute('data-suffix') || '';
+          const dur    = 1800;
+          const step   = 16;
+          const steps  = dur / step;
+          let current  = 0;
+          const timer  = setInterval(function() {
+            current += target / steps;
+            if (current >= target) { current = target; clearInterval(timer); }
+            el.textContent = Math.floor(current).toLocaleString() + suffix;
+          }, step);
+          observer.unobserve(el);
+        });
+      }, { threshold: 0.5 });
+      counters.forEach(function(el) { observer.observe(el); });
+    })();
+
+
+    /* ----------------------------------------------------------
+       5. MOUSE-PARALLAX TILT ON FEATURE CARDS
+    ---------------------------------------------------------- */
+    (function initTilt() {
+      document.querySelectorAll('[data-tilt]').forEach(function(card) {
+        card.addEventListener('mousemove', function(e) {
+          const rect    = card.getBoundingClientRect();
+          const dx      = (e.clientX - rect.left - rect.width  / 2) / (rect.width  / 2);
+          const dy      = (e.clientY - rect.top  - rect.height / 2) / (rect.height / 2);
+          card.style.transform = 'perspective(600px) rotateX(' + (dy * -8) + 'deg) rotateY(' + (dx * 8) + 'deg) scale3d(1.03,1.03,1.03)';
+        });
+        card.addEventListener('mouseleave', function() {
+          card.style.transform = '';
+          card.style.transition = 'transform 0.4s ease';
+          setTimeout(function() { card.style.transition = ''; }, 400);
+        });
+      });
+    })();
+
+
+    /* ----------------------------------------------------------
+       6. SMOOTH SCROLL
+    ---------------------------------------------------------- */
+    (function initSmoothScroll() {
+      document.querySelectorAll('a[href^="#"]').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          const target = document.querySelector(link.getAttribute('href'));
+          if (!target) return;
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    })();
+
+
+    /* ----------------------------------------------------------
+       7. NAVBAR SCROLL OPACITY
+    ---------------------------------------------------------- */
+    (function initNavScroll() {
+      const nav = document.querySelector('nav');
+      window.addEventListener('scroll', function() {
+        nav.style.background = window.scrollY > 40
+          ? 'rgba(5,10,24,0.95)'
+          : 'rgba(5,10,24,0.7)';
+      }, { passive: true });
+    })();
+
+
+    /* ----------------------------------------------------------
+       8. DEMO CHAT — conversational simulation
+    ---------------------------------------------------------- */
+    (function initDemoChat() {
+      const messagesEl = document.getElementById('demo-messages');
+      const inputEl    = document.getElementById('demo-input');
+      const sendBtn    = document.getElementById('demo-send');
+      const chips      = document.querySelectorAll('.demo-chip');
+
+      /* Scripted AI responses keyed by rough topic match */
+      const RESPONSES = [
+        {
+          match: /study plan|roadmap|schedule/i,
+          reply: function(q) {
+            return '<strong>Here\'s your 7-day study plan!</strong><ul>' +
+              '<li>Day 1 — Foundations &amp; key concepts</li>' +
+              '<li>Day 2 — Core theory deep-dive</li>' +
+              '<li>Day 3 — Worked examples &amp; practice</li>' +
+              '<li>Day 4 — Common mistakes to avoid</li>' +
+              '<li>Day 5 — Advanced topics</li>' +
+              '<li>Day 6 — Timed practice test</li>' +
+              '<li>Day 7 — Full review &amp; flashcards</li>' +
+              '</ul>Scroll down to see a full interactive example &#x2193;';
+          }
+        },
+        {
+          match: /quiz|test me|questions/i,
+          reply: function(q) {
+            return '<strong>Quiz time! &#x1F9EA;</strong> Here are 3 sample questions:<ul>' +
+              '<li><b>Q1:</b> What is the difference between supervised and unsupervised learning?</li>' +
+              '<li><b>Q2:</b> Define gradient descent in one sentence.</li>' +
+              '<li><b>Q3:</b> Name two common evaluation metrics for classifiers.</li>' +
+              '</ul>Reply with your answers and I\'ll grade them!';
+          }
+        },
+        {
+          match: /summar|note|explain|overview/i,
+          reply: function(q) {
+            return '<strong>Summary generated &#x1F4CB;</strong><br>' +
+              'Key concepts identified: <span class="tag">Core Theory</span><span class="tag">Applications</span><span class="tag">Key Figures</span><span class="tag">Dates &amp; Events</span><br><br>' +
+              'The topic covers foundational principles established in the early period, their practical applications across multiple domains, and modern-day relevance. ' +
+              'Would you like me to expand any section or create flashcards from this summary?';
+          }
+        },
+        {
+          match: /flashcard|card|deck/i,
+          reply: function() {
+            return '<strong>Flashcard deck created! &#x1F39F;</strong><ul>' +
+              '<li>8 cards generated across 3 difficulty levels</li>' +
+              '<li>Spaced repetition schedule set for 7 days</li>' +
+              '<li>Topics: definitions, examples, applications</li>' +
+              '</ul>Scroll down to try the interactive flashcard demo &#x2193;';
+          }
+        },
+        {
+          match: /crispr|gene|dna|biology/i,
+          reply: function() {
+            return '<strong>CRISPR-Cas9 Explained &#x1F9EC;</strong><br>' +
+              'CRISPR stands for <em>Clustered Regularly Interspaced Short Palindromic Repeats</em>. ' +
+              'It works in 3 steps:<ul>' +
+              '<li><b>Guide RNA</b> navigates to the target DNA sequence</li>' +
+              '<li><b>Cas9 enzyme</b> cuts both strands of the DNA double helix</li>' +
+              '<li><b>Cell repair</b> mechanisms edit, delete, or replace the gene</li>' +
+              '</ul>Want a quiz on this, or should I create a study plan?';
+          }
+        },
+        {
+          match: /newton|physics|force|motion/i,
+          reply: function() {
+            return '<strong>Newton\'s Laws Quiz &#x1F9EA;</strong><ul>' +
+              '<li><b>Q1:</b> State Newton\'s First Law in your own words.</li>' +
+              '<li><b>Q2:</b> If F = 20 N and m = 4 kg, what is the acceleration?</li>' +
+              '<li><b>Q3:</b> Give a real-world example of Newton\'s Third Law.</li>' +
+              '</ul>Type your answers below — I\'ll provide instant feedback!';
+          }
+        }
+      ];
+
+      const FALLBACK = function(q) {
+        return 'Great question! I\'ve analysed "<em>' + q + '</em>" and I can help you with: ' +
+          '<span class="tag">Study Plan</span><span class="tag">Quiz</span><span class="tag">Summary</span><span class="tag">Flashcards</span><br><br>' +
+          'Which format would you like me to generate first?';
+      };
+
+      /* Render a message bubble */
+      function addMsg(role, html, delay) {
+        delay = delay || 0;
+        setTimeout(function() {
+          const msg  = document.createElement('div');
+          msg.className = 'msg ' + role;
+
+          const avatar = document.createElement('div');
+          avatar.className = 'msg-avatar';
+          avatar.setAttribute('aria-hidden', 'true');
+          avatar.textContent = role === 'agent' ? '✦' : '👤';
+
+          const bubble = document.createElement('div');
+          bubble.className  = 'msg-bubble';
+          bubble.innerHTML  = html;
+
+          msg.appendChild(avatar);
+          msg.appendChild(bubble);
+          messagesEl.appendChild(msg);
+
+          /* Auto-scroll to bottom */
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }, delay);
+      }
+
+      /* Show animated typing indicator, return a remove function */
+      function showTyping() {
+        const msg = document.createElement('div');
+        msg.className = 'msg agent msg-typing';
+        msg.id        = 'typing-indicator';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'msg-avatar';
+        avatar.setAttribute('aria-hidden', 'true');
+        avatar.textContent = '✦';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+        bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+
+        msg.appendChild(avatar);
+        msg.appendChild(bubble);
+        messagesEl.appendChild(msg);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        return function() {
+          const el = document.getElementById('typing-indicator');
+          if (el) el.remove();
+        };
+      }
+
+      /* Process a user message and produce an AI reply */
+      function handleMessage(text) {
+        if (!text.trim()) return;
+
+        /* Render user bubble */
+        addMsg('user', text);
+        inputEl.value = '';
+
+        /* Show typing … then reply */
+        const removeTyping = showTyping();
+        const delay = 900 + Math.random() * 600;
+
+        setTimeout(function() {
+          removeTyping();
+          let replyHtml = FALLBACK(text);
+          for (let i = 0; i < RESPONSES.length; i++) {
+            if (RESPONSES[i].match.test(text)) {
+              replyHtml = RESPONSES[i].reply(text);
+              break;
+            }
+          }
+          addMsg('agent', replyHtml);
+        }, delay);
+      }
+
+      /* Seed the chat with a welcome conversation on load */
+      addMsg('agent',
+        'Hello! I\'m your <strong>Smart Study Generator</strong> &#x1F393;<br>' +
+        'Tell me what you\'d like to study and I\'ll create a personalized plan, quiz, summary, or flashcard deck instantly.',
+        300
+      );
+      addMsg('user', 'Create a 7-day study plan for Machine Learning', 1400);
+      addMsg('agent',
+        '<strong>Here\'s your 7-day ML study plan! &#x1F916;</strong>' +
+        '<ul>' +
+        '<li>Day 1 — Intro: supervised &amp; unsupervised learning</li>' +
+        '<li>Day 2 — Linear &amp; logistic regression</li>' +
+        '<li>Day 3 — Decision trees &amp; random forests</li>' +
+        '<li>Day 4 — Model evaluation metrics</li>' +
+        '<li>Day 5 — Neural network fundamentals</li>' +
+        '<li>Day 6 — Deep learning &amp; CNNs</li>' +
+        '<li>Day 7 — Project + full review quiz</li>' +
+        '</ul>' +
+        'Scroll down to see the full interactive plan &#x2193; or ask me to quiz you!',
+        2800
+      );
+
+      /* Send on button click */
+      sendBtn.addEventListener('click', function() {
+        handleMessage(inputEl.value);
+      });
+
+      /* Send on Enter key */
+      inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') handleMessage(inputEl.value);
+      });
+
+      /* Quick-reply chip clicks */
+      chips.forEach(function(chip) {
+        chip.addEventListener('click', function() {
+          handleMessage(chip.getAttribute('data-msg'));
+        });
+      });
+    })();
+
+
+    /* ----------------------------------------------------------
+       9. STUDY PLAN TABS
+    ---------------------------------------------------------- */
+    (function initPlanTabs() {
+      const tabs = document.querySelectorAll('.plan-tab');
+      tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          /* Deactivate all */
+          tabs.forEach(function(t) {
+            t.classList.remove('active');
+            t.setAttribute('aria-selected', 'false');
+          });
+          document.querySelectorAll('.plan-panel').forEach(function(p) {
+            p.classList.remove('active');
+          });
+
+          /* Activate clicked */
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+          const panelId = 'plan-' + tab.getAttribute('data-plan');
+          const panel = document.getElementById(panelId);
+          if (panel) {
+            panel.classList.add('active');
+            /* Re-trigger fade-in on child cards */
+            panel.querySelectorAll('.plan-day').forEach(function(day, i) {
+              day.style.animationDelay = (i * 60) + 'ms';
+            });
+          }
+        });
+      });
+    })();
+
+
+    /* ----------------------------------------------------------
+       10. FLASHCARD FLIPPER
+    ---------------------------------------------------------- */
+    (function initFlashcards() {
+      /* Card data */
+      const cards = [
+        { q: 'What does "supervised learning" mean in ML?',
+          a: 'The model is trained on labeled data — each input has a known correct output — and learns to map inputs to outputs.' },
+        { q: 'Define gradient descent.',
+          a: 'An optimization algorithm that iteratively adjusts model parameters in the direction that minimizes the loss function.' },
+        { q: 'What is a confusion matrix?',
+          a: 'A table showing the counts of true positives, true negatives, false positives, and false negatives for a classifier.' },
+        { q: 'What does RNA stand for, and what is its role?',
+          a: 'Ribonucleic Acid. It carries genetic information from DNA to the ribosome, where it directs protein synthesis.' },
+        { q: 'State Newton\'s Second Law of Motion.',
+          a: 'Force equals mass times acceleration: F = ma. A larger force produces proportionally greater acceleration.' },
+        { q: 'What is the derivative of sin(x)?',
+          a: 'cos(x). The derivative represents the rate of change of the function at any given point.' },
+        { q: 'Who wrote the Declaration of Independence?',
+          a: 'Thomas Jefferson drafted it in 1776, with input from a committee including Benjamin Franklin and John Adams.' },
+        { q: 'What is backpropagation in neural networks?',
+          a: 'An algorithm that computes gradients of the loss with respect to each weight by applying the chain rule backward through the network.' }
+      ];
+
+      const innerEl    = document.getElementById('flashcard-inner');
+      const questionEl = document.getElementById('card-question');
+      const answerEl   = document.getElementById('card-answer');
+      const counterEl  = document.getElementById('fc-counter');
+      const dotsEl     = document.getElementById('fc-dots');
+      const progressEl = document.getElementById('fc-progress');
+      const scoreBtns  = document.getElementById('fc-score-btns');
+      const wrapper    = document.getElementById('flashcard-wrapper');
+
+      let current = 0;
+      let flipped  = false;
+      let seen     = new Array(cards.length).fill(false);
+
+      /* Build progress dots */
+      function buildDots() {
+        dotsEl.innerHTML = '';
+        cards.forEach(function(_, i) {
+          const dot = document.createElement('div');
+          dot.className = 'fc-dot' + (i === current ? ' active' : '') + (seen[i] ? ' seen' : '');
+          dotsEl.appendChild(dot);
+        });
+      }
+
+      /* Load card at index */
+      function loadCard(idx) {
+        flipped = false;
+        innerEl.classList.remove('flipped');
+        scoreBtns.style.opacity = '0';
+        scoreBtns.style.pointerEvents = 'none';
+
+        /* Slight slide-out / slide-in effect */
+        wrapper.style.opacity = '0';
+        wrapper.style.transform = 'translateY(8px)';
+        setTimeout(function() {
+          current     = idx;
+          questionEl.textContent = cards[current].q;
+          answerEl.textContent   = cards[current].a;
+          counterEl.textContent  = (current + 1) + ' / ' + cards.length;
+          buildDots();
+          const seenCount   = seen.filter(Boolean).length;
+          progressEl.style.width = (seenCount / cards.length * 100) + '%';
+          wrapper.style.opacity   = '1';
+          wrapper.style.transform = 'translateY(0)';
+        }, 180);
+        wrapper.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+      }
+
+      /* Flip card */
+      function flipCard() {
+        flipped = !flipped;
+        innerEl.classList.toggle('flipped', flipped);
+        if (flipped) {
+          seen[current] = true;
+          scoreBtns.style.opacity = '1';
+          scoreBtns.style.pointerEvents = 'auto';
+        } else {
+          scoreBtns.style.opacity = '0';
+          scoreBtns.style.pointerEvents = 'none';
+        }
+      }
+
+      /* Wire up events */
+      wrapper.addEventListener('click', flipCard);
+      wrapper.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flipCard(); }
+        if (e.key === 'ArrowRight') loadCard((current + 1) % cards.length);
+        if (e.key === 'ArrowLeft')  loadCard((current - 1 + cards.length) % cards.length);
+      });
+
+      document.getElementById('fc-next').addEventListener('click', function() {
+        loadCard((current + 1) % cards.length);
+      });
+      document.getElementById('fc-prev').addEventListener('click', function() {
+        loadCard((current - 1 + cards.length) % cards.length);
+      });
+
+      /* Score buttons — just advance to next card in demo */
+      ['fc-easy', 'fc-medium', 'fc-hard'].forEach(function(id) {
+        document.getElementById(id).addEventListener('click', function() {
+          loadCard((current + 1) % cards.length);
+        });
+      });
+
+      /* Init */
+      loadCard(0);
+    })();
+
+  </script>
+</body>
+</html>
