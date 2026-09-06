@@ -26,6 +26,7 @@ The agent generates personalised study plans, quizzes, flashcards, concept expla
 `smart-study-generator-agent.html` is a **fully static single-file HTML application** — no build step, no dependencies to install, no server required.  
 Open it in any modern browser and the page immediately connects to IBM watsonx Orchestrate to serve the live chat agent.
 
+
 A **demo chat UI** (animated bubbles, quick-reply chips, input bar) is displayed while the Watson widget loads. Once the widget is ready, the demo chat is automatically replaced by the live agent interface.
 
 ---
